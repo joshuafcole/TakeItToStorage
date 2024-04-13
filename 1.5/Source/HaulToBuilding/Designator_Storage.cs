@@ -82,7 +82,7 @@ public class Designator_Storage : Designator
 
                 if (section.ButtonText("HaulToBuilding.Clear".Translate()))
                 {
-                    bill.includeFromZone = null;
+                    bill.includeGroup = null;
                     extraData.LookInStorage = null;
                     GameComponent_ExtraBillData.Instance.SetData(bill, extraData);
                 }
@@ -156,7 +156,7 @@ public class Designator_Storage : Designator
                 switch (parent)
                 {
                     case Zone_Stockpile stockpile:
-                        bill.includeFromZone = stockpile;
+                        bill.includeGroup = stockpile.slotGroup;
                         break;
                     case Building_Storage building:
                         extraData.LookInStorage = building;
@@ -171,7 +171,7 @@ public class Designator_Storage : Designator
                 {
                     case Zone_Stockpile stockpile:
                         bill.SetStoreMode(BillStoreModeDefOf.SpecificStockpile,
-                            stockpile);
+                            stockpile.slotGroup);
                         break;
                     case Building_Storage building:
                         bill.SetStoreMode(HaulToBuildingDefOf.StorageBuilding);

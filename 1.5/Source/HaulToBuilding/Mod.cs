@@ -59,7 +59,7 @@ public class HaulToBuildingMod : Mod
         GameComponent_ExtraBillData.Instance.SetData(__result, data);
         if (__instance is Bill_Production billProd)
             if ((billProd.GetStoreMode() == HaulToBuildingDefOf.StorageBuilding && data.Storage == null) ||
-                (billProd.GetStoreMode() == BillStoreModeDefOf.SpecificStockpile && billProd.GetStoreZone() == null))
+                (billProd.GetStoreMode() == BillStoreModeDefOf.SpecificStockpile && billProd.storeGroup == null))
             {
                 Log.Warning("[HaulToBuilding] Inconsistent Bill setting, fixing");
                 billProd.SetStoreMode(BillStoreModeDefOf.BestStockpile);

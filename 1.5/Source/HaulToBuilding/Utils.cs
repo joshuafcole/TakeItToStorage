@@ -24,24 +24,24 @@ namespace HaulToBuilding
                 ? parent.GetStoreSettings().AllowedToAccept(ing.FixedIngredient)
                 : ing.filter.AllowedThingDefs.Any(def => parent.GetStoreSettings().AllowedToAccept(def)));
 
-        public static string LookInText(this Bill_Production bill, ExtraBillData extraData) => bill.includeFromZone == null && extraData.LookInStorage == null
+        public static string LookInText(this Bill_Production bill, ExtraBillData extraData) => bill.includeGroup == null && extraData.LookInStorage == null
             ? "IncludeFromAll".Translate()
             : "IncludeSpecific".Translate(
-                ((ISlotGroupParent) bill.includeFromZone ?? extraData.LookInStorage)
+                ((ISlotGroupParent) bill.includeGroup ?? extraData.LookInStorage)
                 .SlotYielderLabel());
 
-        public static bool ValidLookIn(this ISlotGroupParent parent, Bill_Production bill) => bill.recipe.WorkerCounter.CanPossiblyStoreInStockpile(bill,
-            parent as Zone_Stockpile ?? parent.FakeStockpile());
+        public static bool ValidLookIn(this ISlotGroupParent parent, Bill_Production bill) => bill.recipe.WorkerCounter.CanPossiblyStore(bill,
+            (parent as Zone_Stockpile ?? parent.FakeStockpile()).slotGroup);
 
         public static string TakeToText(Bill_Production bill, ExtraBillData extraData, out bool incompatible)
         {
             var text = string.Format(bill.GetStoreMode().LabelCap,
-                bill.GetStoreZone() != null ? bill.GetStoreZone().SlotYielderLabel() :
+                bill.storeGroup is SlotGroup sg ? sg.parent.SlotYielderLabel() :
                 extraData.Storage != null ? extraData.Storage.SlotYielderLabel() : "");
-            incompatible = bill.GetStoreZone() != null &&
-                !bill.recipe.WorkerCounter.CanPossiblyStoreInStockpile(bill, bill.GetStoreZone()) || extraData.Storage != null &&
-                !bill.recipe.WorkerCounter.CanPossiblyStoreInStockpile(bill,
-                    extraData.Storage.FakeStockpile());
+            incompatible = bill.storeGroup != null &&
+                !bill.recipe.WorkerCounter.CanPossiblyStore(bill, bill.storeGroup) || extraData.Storage != null &&
+                !bill.recipe.WorkerCounter.CanPossiblyStore(bill,
+                    extraData.Storage.FakeStockpile().slotGroup);
             if (incompatible) text += $" ({"IncompatibleLower".Translate()})";
             return text;
         }
@@ -50,8 +50,8 @@ namespace HaulToBuilding
         {
             return parent switch
             {
-                Building_Storage building => bill.recipe.WorkerCounter.CanPossiblyStoreInStockpile(bill, building.FakeStockpile()),
-                Zone_Stockpile stockpile => bill.recipe.WorkerCounter.CanPossiblyStoreInStockpile(bill, stockpile),
+                Building_Storage building => bill.recipe.WorkerCounter.CanPossiblyStore(bill, building.FakeStockpile().slotGroup),
+                Zone_Stockpile stockpile => bill.recipe.WorkerCounter.CanPossiblyStore(bill, stockpile.slotGroup),
                 _ => false
             };
         }

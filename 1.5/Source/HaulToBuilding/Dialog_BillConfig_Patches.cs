@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using HarmonyLib;
+using LudeonTK;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -166,10 +167,10 @@ public class Dialog_BillConfig_Patches
     {
         var extraData = GameComponent_ExtraBillData.Instance.GetData(dialog.bill);
         yield return new ToggleOption("IncludeFromAll".Translate(),
-            dialog.bill.includeFromZone == null && extraData.LookInStorage == null,
+            dialog.bill.includeGroup == null && extraData.LookInStorage == null,
             delegate
             {
-                dialog.bill.includeFromZone = null;
+                dialog.bill.includeGroup = null;
                 extraData.LookInStorage = null;
                 GameComponent_ExtraBillData.Instance.SetData(dialog.bill, extraData);
             }, () => { });
@@ -181,7 +182,7 @@ public class Dialog_BillConfig_Patches
             switch (slotGroup.parent)
             {
                 case Zone_Stockpile stockpile:
-                    enabled = dialog.bill.includeFromZone == stockpile;
+                    enabled = dialog.bill.includeGroup == stockpile.slotGroup;
                     break;
                 case Building_Storage b:
                     enabled = extraData.LookInStorage == b;
@@ -197,18 +198,18 @@ public class Dialog_BillConfig_Patches
                     switch (slotGroup.parent)
                     {
                         case Zone_Stockpile stockpile:
-                            dialog.bill.includeFromZone = stockpile;
+                            dialog.bill.includeGroup = stockpile.slotGroup;
                             extraData.LookInStorage = null;
                             break;
                         case Building_Storage b:
                             extraData.LookInStorage = b;
-                            dialog.bill.includeFromZone = null;
+                            dialog.bill.includeGroup = null;
                             GameComponent_ExtraBillData.Instance.SetData(dialog.bill, extraData);
                             break;
                     }
                 }, delegate
                 {
-                    dialog.bill.includeFromZone = null;
+                    dialog.bill.includeGroup = null;
                     extraData.LookInStorage = null;
                     GameComponent_ExtraBillData.Instance.SetData(dialog.bill, extraData);
                 }, valid);
@@ -259,10 +260,10 @@ public class Dialog_BillConfig_Patches
                             valid
                                 ? string.Format(billStoreModeDef.LabelCap, group.parent.SlotYielderLabel())
                                 : $"{string.Format(billStoreModeDef.LabelCap, group.parent.SlotYielderLabel())} ({"IncompatibleLower".Translate()})",
-                            dialog.bill.storeZone == stockpile, delegate
+                            dialog.bill.includeGroup == stockpile.slotGroup, delegate
                             {
                                 dialog.bill.SetStoreMode(BillStoreModeDefOf.SpecificStockpile,
-                                    (Zone_Stockpile)group.parent);
+	                                stockpile.slotGroup);
                             }, delegate { dialog.bill.SetStoreMode(BillStoreModeDefOf.BestStockpile); }, valid);
                     }
             }
