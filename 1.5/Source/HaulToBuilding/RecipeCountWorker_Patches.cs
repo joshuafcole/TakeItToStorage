@@ -31,7 +31,7 @@ public class RecipeCountWorker_Patches
     {
         var isCore = original.DeclaringType == typeof(RecipeWorkerCounter);
         var list = instructions.ToList();
-        var info1 = AccessTools.Field(typeof(Bill_Production), "includeFromZone");
+        var info1 = AccessTools.Field(typeof(Bill_Production), "includeGroup");
         var idx1 = list.FindIndex(ins => ins.LoadsField(info1));
         var label1 = (Label)list[idx1 + 1].operand;
         list.InsertRange(idx1 + 2, new[]
@@ -63,7 +63,7 @@ public class RecipeCountWorker_Patches
     public static IEnumerable<CodeInstruction> Transpiler_Postfix(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
         var list = instructions.ToList();
-        var info1 = AccessTools.Field(typeof(Bill_Production), "includeFromZone");
+        var info1 = AccessTools.Field(typeof(Bill_Production), "includeGroup");
         var idx1 = list.FindIndex(ins => ins.LoadsField(info1));
         var label1 = (Label)list[idx1 + 1].operand;
         list.InsertRange(idx1 + 2, new[]
