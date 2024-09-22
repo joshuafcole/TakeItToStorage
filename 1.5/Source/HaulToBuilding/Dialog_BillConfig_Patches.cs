@@ -72,18 +72,9 @@ public class Dialog_BillConfig_Patches
 
     public static IEnumerable<CodeInstruction> Transpile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
-        Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.Transpile called");
-
-        bool debug = true; // Set this to false to disable debug logging
-        Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.Transpile method called");
-
+        bool debug = true;
+        
         var list = instructions.ToList();
-        /* Log.Message("\n\n\n-----\n\n\n");
-        foreach (var instr in list)
-        {
-            Log.Message(instr);
-        }
-        Log.Message("\n\n\n-----\n\n\n"); */
 
         // First replace operation
         var info1 = AccessTools.Field(typeof(Dialog_BillConfig), "StoreModeSubdialogHeight");
@@ -107,14 +98,13 @@ public class Dialog_BillConfig_Patches
         /* var info2 = AccessTools.Method(typeof(Listing), "GetRect");
         var info3 = AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(method => method.Name == "Dropdown")
             .OrderBy(method => method.GetParameters().Length).First()
-            .MakeGenericMethod(typeof(Bill_Production), typeof(Zone_Stockpile)); */
-        /* var getStoreModeMethod = AccessTools.Method(typeof(RimWorld.Bill), "GetStoreMode");
-
+            .MakeGenericMethod(typeof(Bill_Production), typeof(Zone_Stockpile));
+  
         var doStockpileDropdown = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStockpileDropdown");
         list = Utils.PatchRange(
             list,
-            getStoreModeMethod, // info2,
-            info5, // info3,
+            info2,
+            info3,
             new[]
             {
                 new CodeInstruction(OpCodes.Call, doStockpileDropdown)
@@ -245,10 +235,8 @@ public class Dialog_BillConfig_Patches
 
     public static void DoStoreModeButton(Dialog_BillConfig dialog, Listing_Standard listingStandard)
     {
-        Log.Message("HI DO STORE MODE BUTTON");
         var listing = listingStandard.BeginSection(Dialog_BillConfig.StoreModeSubdialogHeight);
         var extraData = GameComponent_ExtraBillData.Instance.GetData(dialog.bill);
-        Log.Message("EX " + extraData);
         if (extraData.NeedCheck)
         {
             dialog.bill.ValidateSettings();
