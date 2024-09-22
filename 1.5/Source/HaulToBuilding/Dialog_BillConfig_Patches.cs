@@ -21,37 +21,19 @@ public class Dialog_BillConfig_Patches
     public static void DoPatches(Harmony harm)
     {
         Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.DoPatches called");
-        try
-        {
-            harm.Patch(AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents"),
-                transpiler: new HarmonyMethod(typeof(Dialog_BillConfig_Patches), "Transpile"));
-        }
-        catch (Exception e)
-        {
-            Log.Error(
-                $"Got error while patching Dialog_BillConfig.DoWindowContents: {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
-        }
 
-        try
-        {
-            harm.Patch(AccessTools.Method(typeof(Bill_Production), nameof(Bill_Production.DoConfigInterface)),
-                transpiler: new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(ConfigTranspile)));
-        }
-        catch (Exception e)
-        {
-            Log.Error(
-                $"Got error while patching Bill_Production.DoConfigInterface: {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
-        }
-        try
-        {
-            if (ModLister.HasActiveModWithName("Math! (Forked)")) {
-                harm.Patch(AccessTools.Method(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "RenderStockpileSettings"),
-                transpiler: new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(MathTranspile)));
-            }
-        } catch (Exception e) {
-Log.Error(
-                $"Got error while patching Math! {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
-        }
+        Utils.TryPatch(harm,
+            AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents"),
+            new HarmonyMethod(typeof(Dialog_BillConfig_Patches), "Transpile"));
+
+        Utils.TryPatch(harm,
+            AccessTools.Method(typeof(Bill_Production), nameof(Bill_Production.DoConfigInterface)),
+            new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(ConfigTranspile)));
+ 
+         if (ModLister.HasActiveModWithName("Math! (Forked)")) {
+            DoMathPatches(harm);
+         }
+
 
         Dialog_BillConfig.RepeatModeSubdialogHeight = 280; // Make room for new Button
     }
@@ -78,41 +60,6 @@ Log.Error(
             Find.Selector.ClearSelection();
             Find.DesignatorManager.Select(new Designator_Storage(bill));
         }
-    }
-
-    public static IEnumerable<CodeInstruction> MathTranspile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
-    {
-        bool debug = true;
-        var list = instructions.ToList();
-
-        // First replace operation
-        var info1 = AccessTools.Field(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "StoreModeSubdialogHeight");
-        var info5 = AccessTools.Method(typeof(Listing_Standard), "EndSection");
-        var info4 = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStoreModeButtonMath");
-
-        list = Utils.PatchRange(
-            list,
-            info1,
-            info5,
-            new[]
-            {
-                new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldarg_1),
-                new CodeInstruction(OpCodes.Call, info4)
-            },
-            debug: debug,
-            offsetStart: -1
-        ).ToList();
-
-        var idx5 = list.FindIndex(ins => ins.Calls(info4));
-        var idx6 = list.FindIndex(idx5, ins => ins.Calls(AccessTools.Method(typeof(Listing), "Gap")));
-        list.InsertRange(idx6 + 1, new[]
-        {
-            new CodeInstruction(OpCodes.Ldarg_0),
-            new CodeInstruction(OpCodes.Ldarg_1),
-            new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoTakeFrom"))
-        });
-        return list;        
     }
 
     public static IEnumerable<CodeInstruction> Transpile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
@@ -373,5 +320,104 @@ Log.Error(
                                 { BillStoreModeDefOf.BestStockpile, BillStoreModeDefOf.DropOnFloor }
                             .First(d => d != billStoreModeDef));
                     });
+    }
+
+
+    //-------------------------------------------------------------------------
+    // Patches for Math! (Reworked)
+    //-------------------------------------------------------------------------
+
+    public static void DoMathPatches(Harmony harm)
+    {
+        Log.Message("[HaulToBuilding] Math! (Reworked) mod detected. Patching CrunchyDuck.Math.Dialog_MathBillConfig");
+        
+           
+        Utils.TryPatch(harm,
+            AccessTools.Method(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "RenderStockpileSettings"),
+            new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(MathStockpileTranspile)));
+
+        /* Utils.TryPatch(harm, 
+            AccessTools.Method(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "RenderBillSettings"),
+            new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(MathBillTranspile))); */
+
+        // Make room for extra button
+        Type dialogType = AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig");
+        System.Reflection.FieldInfo fieldInfo = AccessTools.Field(dialogType, "RepeatModeSubdialogHeight");
+        fieldInfo.SetValue(null, (int)fieldInfo.GetValue(null) - 40);
+    }
+
+    public static IEnumerable<CodeInstruction> MathStockpileTranspile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        bool debug = true;
+        var list = instructions.ToList();
+
+        var info1 = AccessTools.Field(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "StoreModeSubdialogHeight");
+        var info5 = AccessTools.Method(typeof(Listing_Standard), "EndSection");
+        var info4 = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStoreModeButtonMath");
+
+        list = Utils.PatchRange(
+            list,
+            info1,
+            info5,
+            new[]
+            {
+                new CodeInstruction(OpCodes.Ldarg_0),
+                new CodeInstruction(OpCodes.Ldarg_1),
+                new CodeInstruction(OpCodes.Call, info4)
+            },
+            debug: debug,
+            offsetStart: -1
+        ).ToList();
+
+        var idx5 = list.FindIndex(ins => ins.Calls(info4));
+        var idx6 = list.FindIndex(idx5, ins => ins.Calls(AccessTools.Method(typeof(Listing), "Gap")));
+        list.InsertRange(idx6 + 1, new[]
+        {
+            new CodeInstruction(OpCodes.Ldarg_0),
+            new CodeInstruction(OpCodes.Ldarg_1),
+            new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoTakeFrom"))
+        });
+        return list;        
+    }
+
+    public static IEnumerable<CodeInstruction> MathBillTranspile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        bool debug = true;
+        var list = instructions.ToList();
+
+        var start = AccessTools.Field(typeof(Bill_Production), "includeGroup");
+        var end = AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(method => method.Name == "Dropdown")
+            .OrderBy(method => method.GetParameters().Length).First()
+            .MakeGenericMethod(typeof(Bill_Production), typeof(Zone_Stockpile));
+  
+        var doStockpileDropdown = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStockpileDropdown");
+
+        /* Log.Message("\n\n\n\n----------------\n\n\n\n");
+        foreach(var ins in list.Skip(list.FindIndex(ins => ins.LoadsField(start)) - 7)) {
+            Log.Message("    " + ins);
+        }
+        Log.Message("\n\n\n\n----------------\n\n\n\n"); */
+
+        list = Utils.PatchRange(
+            list,
+            start,
+            end,
+            new[]
+            {
+                // Get the Rect and push it onto the stack
+                new CodeInstruction(OpCodes.Ldarg_1), // Load the listing_standard parameter
+                new CodeInstruction(OpCodes.Ldc_R4, 30f),
+                new CodeInstruction(OpCodes.Ldc_R4, 1f),
+                new CodeInstruction(OpCodes.Callvirt, AccessTools.Method(typeof(Listing_Standard), "GetRect", new[] { typeof(float), typeof(float) })),
+
+                // Load 'this' onto the stack (Dialog_BillConfig instance)
+                new CodeInstruction(OpCodes.Ldarg_0),
+                new CodeInstruction(OpCodes.Call, doStockpileDropdown)
+            },
+            debug: debug,
+            offsetStart: -6
+        ).ToList();
+
+        return list;        
     }
 }

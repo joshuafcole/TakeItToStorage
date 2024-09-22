@@ -60,6 +60,19 @@ namespace HaulToBuilding
             };
         }
 
+        public static bool TryPatch(Harmony harm, System.Reflection.MethodInfo targetMethod, HarmonyMethod transpilerMethod) {
+            try
+            {
+                harm.Patch(targetMethod, transpiler: transpilerMethod);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"Got error while patching {targetMethod}: {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
+                return false;
+            }
+            return true; 
+        }
+
         public static IEnumerable<CodeInstruction> PatchRange(
             List<CodeInstruction> instructions,
             object startSubject,
