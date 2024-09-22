@@ -20,6 +20,7 @@ public class Dialog_BillConfig_Patches
 
     public static void DoPatches(Harmony harm)
     {
+        Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.DoPatches called");
         try
         {
             harm.Patch(AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents"),
@@ -71,31 +72,57 @@ public class Dialog_BillConfig_Patches
 
     public static IEnumerable<CodeInstruction> Transpile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
+        Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.Transpile called");
+
+        bool debug = true; // Set this to false to disable debug logging
+        Log.Message("HaulToBuilding: Dialog_BillConfig_Patches.Transpile method called");
+
         var list = instructions.ToList();
-        var info1 = AccessTools.Field(typeof(Dialog_BillConfig), "StoreModeSubdialogHeight");
-        var idx1 = list.FindIndex(ins => ins.LoadsField(info1)) - 1;
-        var info5 = AccessTools.Method(typeof(Listing_Standard), "EndSection");
-        var idx2 = list.FindIndex(idx1, ins => ins.Calls(info5));
-        list.RemoveRange(idx1, idx2 + 1 - idx1);
-        var info4 = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStoreModeButton");
-        list.InsertRange(idx1, new[]
+        /* Log.Message("\n\n\n-----\n\n\n");
+        foreach (var instr in list)
         {
-            new CodeInstruction(OpCodes.Ldarg_0),
-            new CodeInstruction(OpCodes.Ldloc_S, 5),
-            new CodeInstruction(OpCodes.Call, info4)
-        });
-        var info2 = AccessTools.Method(typeof(Listing), "GetRect");
-        var idx3 = list.FindIndex(ins => ins.Calls(info2)) + 2;
+            Log.Message(instr);
+        }
+        Log.Message("\n\n\n-----\n\n\n"); */
+
+        // First replace operation
+        var info1 = AccessTools.Field(typeof(Dialog_BillConfig), "StoreModeSubdialogHeight");
+        var info5 = AccessTools.Method(typeof(Listing_Standard), "EndSection");
+        var info4 = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStoreModeButton");
+        list = Utils.PatchRange(
+            list,
+            info1,
+            info5,
+            new[]
+            {
+                new CodeInstruction(OpCodes.Ldarg_0),
+                new CodeInstruction(OpCodes.Ldloc_S, 5),
+                new CodeInstruction(OpCodes.Call, info4)
+            },
+            debug: debug,
+            offsetStart: -1
+        ).ToList();
+
+        // Second replace operation
+        /* var info2 = AccessTools.Method(typeof(Listing), "GetRect");
         var info3 = AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(method => method.Name == "Dropdown")
             .OrderBy(method => method.GetParameters().Length).First()
-            .MakeGenericMethod(typeof(Bill_Production), typeof(Zone_Stockpile));
-        var idx4 = list.FindIndex(ins => ins.Calls(info3));
-        list.RemoveRange(idx3, idx4 + 1 - idx3);
-        list.InsertRange(idx3, new[]
-        {
-            new CodeInstruction(OpCodes.Call,
-                AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStockpileDropdown"))
-        });
+            .MakeGenericMethod(typeof(Bill_Production), typeof(Zone_Stockpile)); */
+        /* var getStoreModeMethod = AccessTools.Method(typeof(RimWorld.Bill), "GetStoreMode");
+
+        var doStockpileDropdown = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStockpileDropdown");
+        list = Utils.PatchRange(
+            list,
+            getStoreModeMethod, // info2,
+            info5, // info3,
+            new[]
+            {
+                new CodeInstruction(OpCodes.Call, doStockpileDropdown)
+            },
+            debug: debug,
+            offsetStart: -1
+        ).ToList(); */
+
         var idx5 = list.FindIndex(ins => ins.Calls(info4));
         var idx6 = list.FindIndex(idx5, ins => ins.Calls(AccessTools.Method(typeof(Listing), "Gap")));
         list.InsertRange(idx6 + 1, new[]
@@ -218,8 +245,10 @@ public class Dialog_BillConfig_Patches
 
     public static void DoStoreModeButton(Dialog_BillConfig dialog, Listing_Standard listingStandard)
     {
+        Log.Message("HI DO STORE MODE BUTTON");
         var listing = listingStandard.BeginSection(Dialog_BillConfig.StoreModeSubdialogHeight);
         var extraData = GameComponent_ExtraBillData.Instance.GetData(dialog.bill);
+        Log.Message("EX " + extraData);
         if (extraData.NeedCheck)
         {
             dialog.bill.ValidateSettings();

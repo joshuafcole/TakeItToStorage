@@ -31,22 +31,37 @@ public class RecipeCountWorker_Patches
     {
         var isCore = original.DeclaringType == typeof(RecipeWorkerCounter);
         var list = instructions.ToList();
-        var info1 = AccessTools.Field(typeof(Bill_Production), "includeGroup");
-        var idx1 = list.FindIndex(ins => ins.LoadsField(info1));
+        // var info1 = AccessTools.Field(typeof(Bill_Production), "includeGroup");
+        var info1 =  AccessTools.Method(typeof(Bill_Production), "GetIncludeSlotGroup");
+        var idx1 = list.FindIndex(ins => ins.Calls(info1));
+        
         var label1 = (Label)list[idx1 + 1].operand;
+        Log.Message($"info1: {info1} idx1: {idx1} label1: {label1}");
         list.InsertRange(idx1 + 2, new[]
         {
             new CodeInstruction(OpCodes.Ldarg_1),
             new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(RecipeCountWorker_Patches), nameof(HasBuilding))),
             new CodeInstruction(OpCodes.Brtrue, label1)
         });
-        var idx2 = list.FindIndex(idx1 + 1, ins => ins.LoadsField(info1));
-        var label2 = (Label)list[idx2 + 1].operand;
-        var idx3 = list.FindIndex(ins => ins.labels.Contains(label2));
+        var idx2 = list.FindIndex(idx1 + 1, ins => ins.Calls(info1));
+
+        Label? label2 = null;
+        var idx2b = list.FindIndex(idx2, ins => ins.Branches(out label2));
+        if(label2 == null) {
+            Log.Error($"Failed to find branch label after get include slot group");
+            return list;
+        }
+        Log.Message($"idx2: {idx2} idx2b: {idx2b} label2: {label2}");
+
+
+        // var label2 = (Label)list[idx2 + 1].operand;
+        var idx3 = list.FindIndex(ins => ins.labels.Contains((Label)label2));
+        Log.Message($"label2: {label2} idx3: {idx3}");
         var ins = list[idx3 - (isCore ? 1 : 5)];
         if (ins.opcode != (isCore ? OpCodes.Br_S : OpCodes.Leave_S))
             throw new Exception("Unexpected instruction when searching for label");
         var label3 = (Label)ins.operand;
+        Log.Message($"ins: {ins} label3: {label3}");
         list.InsertRange(idx2 + 2, new[]
         {
             new CodeInstruction(OpCodes.Ldarg_0),
@@ -63,8 +78,8 @@ public class RecipeCountWorker_Patches
     public static IEnumerable<CodeInstruction> Transpiler_Postfix(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
     {
         var list = instructions.ToList();
-        var info1 = AccessTools.Field(typeof(Bill_Production), "includeGroup");
-        var idx1 = list.FindIndex(ins => ins.LoadsField(info1));
+        var info1 =  AccessTools.Method(typeof(Bill_Production), "GetIncludeSlotGroup");
+        var idx1 = list.FindIndex(ins => ins.Calls(info1));
         var label1 = (Label)list[idx1 + 1].operand;
         list.InsertRange(idx1 + 2, new[]
         {

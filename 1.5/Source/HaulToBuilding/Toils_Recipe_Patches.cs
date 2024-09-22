@@ -15,13 +15,20 @@ internal class Toils_Recipe_Patches
     {
         try
         {
-            harm.Patch(AccessTools.Method(AccessTools.Inner(typeof(Toils_Recipe), "<>c__DisplayClass3_0"), "<FinishRecipeAndStartStoringProduct>b__0"),
+            // ldfld Verse.AI.Toil Verse.AI.<>c__DisplayClass3_0::toil
+            // harm.Patch(AccessTools.Method(AccessTools.Inner(typeof(Toils_Recipe), "<>c__DisplayClass3_0"), "<FinishRecipeAndStartStoringProduct>b__0"),
+            //     transpiler: new HarmonyMethod(typeof(Toils_Recipe_Patches), nameof(Transpiler)));
+
+            harm.Patch(AccessTools.Method(AccessTools.Inner(typeof(Toils_Recipe), "<>c__DisplayClass3_0"), "<FinishRecipeAndStartStoringProduct>b__1"),
                 transpiler: new HarmonyMethod(typeof(Toils_Recipe_Patches), nameof(Transpiler)));
+
+            /* harm.Patch(AccessTools.Method(typeof(Toils_Recipe), "FinishRecipeAndStartStoringProduct"),
+                transpiler: new HarmonyMethod(typeof(Toils_Recipe_Patches), nameof(Transpiler))); */
         }
         catch (Exception e)
         {
             Log.Error(
-                $"Got error while patching Toils_Recipe.<>c_DisplayClass3_0.<FinishRecipeAndStartStoringProduct>b__0: {e.Message}\n{e.StackTrace}");
+                $"Got error while patching Toils_Recipe.<>c_DisplayClass3_0.<FinishRecipeAndStartStoringProduct>b__1: {e.Message}\n{e.StackTrace}");
         }
 
         harm.Patch(AccessTools.Method(typeof(Toils_Recipe), nameof(Toils_Recipe.FinishRecipeAndStartStoringProduct)),
@@ -37,6 +44,8 @@ internal class Toils_Recipe_Patches
         ILGenerator generator)
     {
         var list = instructions.ToList();
+        
+
         var info1 = AccessTools.Field(typeof(BillStoreModeDefOf), "SpecificStockpile");
         var idx = list.FindIndex(ins => ins.LoadsField(info1));
         var label1 = (Label)list[idx + 1].operand;

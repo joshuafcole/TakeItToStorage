@@ -1,4 +1,8 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection.Emit;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 
@@ -54,6 +58,67 @@ namespace HaulToBuilding
                 Zone_Stockpile stockpile => bill.recipe.WorkerCounter.CanPossiblyStore(bill, stockpile.slotGroup),
                 _ => false
             };
+        }
+
+        public static IEnumerable<CodeInstruction> PatchRange(
+            List<CodeInstruction> instructions,
+            object startSubject,
+            object endSubject,
+            IEnumerable<CodeInstruction> replacementInstructions,
+            string operationName = null,
+            bool debug = false,
+            int offsetStart = 0,
+            int offsetEnd = 0)
+        {
+
+
+            operationName ??= $"{startSubject} -> {endSubject}";
+
+            Predicate<CodeInstruction> CreatePredicate(object subject)
+            {
+                return subject switch
+                {
+                    System.Reflection.MethodInfo method => (CodeInstruction ins) => ins.Calls(method),
+                    System.Reflection.FieldInfo field => (CodeInstruction ins) => ins.LoadsField(field),
+                    OpCode opCode => (CodeInstruction ins) => ins.opcode == opCode,
+                    _ => throw new ArgumentException($"Unsupported subject type: {subject.GetType()}")
+                };
+            }
+
+            var startPredicate = CreatePredicate(startSubject);
+            var endPredicate = CreatePredicate(endSubject);
+
+            int startIndex = instructions.FindIndex(startPredicate);
+            if (startIndex == -1)
+            {
+                if (debug) Log.Error($"HaulToBuilding: Could not find start of {operationName}");
+                return instructions;
+            }
+            startIndex += offsetStart;
+
+            int endIndex = instructions.FindIndex(startIndex + 1, endPredicate);
+            if (endIndex == -1)
+            {
+                if (debug) Log.Error($"HaulToBuilding: Could not find end of {operationName}");
+                return instructions;
+            }
+            endIndex += offsetEnd;
+
+            int removeCount = endIndex - startIndex + 1;
+            if (removeCount <= 0)
+            {
+                if (debug) Log.Error($"HaulToBuilding: Invalid replace range for {operationName}: startIndex={startIndex}, endIndex={endIndex}");
+                return instructions;
+            }
+
+            var replacementList = replacementInstructions.ToList();
+
+            if (debug) Log.Message($"HaulToBuilding: Replacing range for {operationName}: startIndex={startIndex}, endIndex={endIndex}, removeCount={removeCount}, insertCount={replacementList.Count}");
+
+            instructions.RemoveRange(startIndex, removeCount);
+            instructions.InsertRange(startIndex, replacementList);
+
+            return instructions;
         }
     }
 }
