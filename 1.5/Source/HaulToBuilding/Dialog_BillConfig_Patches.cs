@@ -42,6 +42,16 @@ public class Dialog_BillConfig_Patches
             Log.Error(
                 $"Got error while patching Bill_Production.DoConfigInterface: {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
         }
+        try
+        {
+            if (ModLister.HasActiveModWithName("Math! (Forked)")) {
+                harm.Patch(AccessTools.Method(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "RenderStockpileSettings"),
+                transpiler: new HarmonyMethod(typeof(Dialog_BillConfig_Patches), nameof(MathTranspile)));
+            }
+        } catch (Exception e) {
+Log.Error(
+                $"Got error while patching Math! {e.Message}\n{e.StackTrace}\n{e.InnerException?.Message}\n{e.InnerException?.StackTrace}");
+        }
 
         Dialog_BillConfig.RepeatModeSubdialogHeight = 280; // Make room for new Button
     }
@@ -68,6 +78,41 @@ public class Dialog_BillConfig_Patches
             Find.Selector.ClearSelection();
             Find.DesignatorManager.Select(new Designator_Storage(bill));
         }
+    }
+
+    public static IEnumerable<CodeInstruction> MathTranspile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+    {
+        bool debug = true;
+        var list = instructions.ToList();
+
+        // First replace operation
+        var info1 = AccessTools.Field(AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig"), "StoreModeSubdialogHeight");
+        var info5 = AccessTools.Method(typeof(Listing_Standard), "EndSection");
+        var info4 = AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoStoreModeButtonMath");
+
+        list = Utils.PatchRange(
+            list,
+            info1,
+            info5,
+            new[]
+            {
+                new CodeInstruction(OpCodes.Ldarg_0),
+                new CodeInstruction(OpCodes.Ldarg_1),
+                new CodeInstruction(OpCodes.Call, info4)
+            },
+            debug: debug,
+            offsetStart: -1
+        ).ToList();
+
+        var idx5 = list.FindIndex(ins => ins.Calls(info4));
+        var idx6 = list.FindIndex(idx5, ins => ins.Calls(AccessTools.Method(typeof(Listing), "Gap")));
+        list.InsertRange(idx6 + 1, new[]
+        {
+            new CodeInstruction(OpCodes.Ldarg_0),
+            new CodeInstruction(OpCodes.Ldarg_1),
+            new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Dialog_BillConfig_Patches), "DoTakeFrom"))
+        });
+        return list;        
     }
 
     public static IEnumerable<CodeInstruction> Transpile(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
@@ -232,10 +277,20 @@ public class Dialog_BillConfig_Patches
                 }, valid);
         }
     }
-
     public static void DoStoreModeButton(Dialog_BillConfig dialog, Listing_Standard listingStandard)
     {
-        var listing = listingStandard.BeginSection(Dialog_BillConfig.StoreModeSubdialogHeight);
+        DoStoreModeButtonBase(dialog, listingStandard, Dialog_BillConfig.StoreModeSubdialogHeight);
+    }
+    public static void DoStoreModeButtonMath(Dialog_BillConfig dialog, Listing_Standard listingStandard)
+    {
+        Type dialogType = AccessTools.TypeByName("CrunchyDuck.Math.Dialog_MathBillConfig");
+        System.Reflection.FieldInfo fieldInfo = AccessTools.Field(dialogType, "StoreModeSubdialogHeight");
+        DoStoreModeButtonBase(dialog, listingStandard, (int)fieldInfo.GetValue(null));
+    }
+
+    public static void DoStoreModeButtonBase(Dialog_BillConfig dialog, Listing_Standard listingStandard, int sectionHeight)
+    {
+        var listing = listingStandard.BeginSection(sectionHeight);
         var extraData = GameComponent_ExtraBillData.Instance.GetData(dialog.bill);
         if (extraData.NeedCheck)
         {
